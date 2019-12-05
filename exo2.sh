@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-#Vous devez écrire un script shell, que vous appellerez exo2.sh, qui prend en argument un nom de fichier et qui teste que ce fichier est un fichier ordinaire qui n'a pas le droit d'écriture pour le propriétaire.
+#Vous devez écrire un script shell, que vous appellerez exo2.sh, qui prend en argument un nom de fichier et
+# qui teste que ce fichier est un fichier ordinaire qui n'a pas le droit d'écriture pour le propriétaire.
 #
 # Votre script ne doit rien afficher. Cependant :
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-#Vous devez écrire un script shell, que vous appelerezexo3.sh, qui prend en argument une chaîne de caractères et qui teste que cette chaîne contient au moins un caractère 'X' et au moins un caractère 'Y'.
+#Vous devez écrire un script shell, que vous appelerez exo3.sh, qui prend en argument une chaîne de
+#caractères et qui teste que cette chaîne contient au moins un caractère 'X' et au moins un caractère 'Y'.
 #
 # Votre script ne doit rien afficher. Cependant :
 #

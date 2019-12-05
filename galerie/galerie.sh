@@ -12,7 +12,7 @@
 #
 #
 #Vérification des parametres, S'ils sont absents, on met une valeur par default
-if [ -z $1 ]
+if [ -z "$1" ]
     then
         sortie='galerie.html'
     else
@@ -20,7 +20,7 @@ if [ -z $1 ]
 fi
 
 #Préparation des fichiers et dossiers
-echo '' > $sortie # faire un echo vide dans ce fichier pour le vider.
+echo '' > "$sortie" # faire un echo vide dans ce fichier pour le vider.
 
 #On crée le dossier qui accueillera les images miniatures s'il n'existe pas.
 if [ ! -e miniatures ]
@@ -38,7 +38,7 @@ echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"  "http://www.w3.o
        a img { border:5; }
        </style>
    </head>
-   <body><p>' >> $sortie
+   <body><p>' >> "$sortie"
 
 ## Génération des miniatures et de la page ##
 #
@@ -50,11 +50,11 @@ do
         # Le petit symbole « > » permet, comme indiqué dans la documentation du programme, de ne pas générer de miniature inutilement si l'image est de base plus petite que la taille des miniatures.
         convert $image -thumbnail '200x200>' miniatures/$image
         # On écrit dans la page web la balise qui affichera l'image et on fait un lien vers la version agrandie.
-        echo '<a href="'$image'"><img src="miniatures/'$image'" alt="" /> </a> ' >> $sortie
+        echo '<a href="'"$image"'"><img src="miniatures/'"$image"'" alt="" /> </a> ' >> "$sortie"
 done
 
 ## Pied de page HTML ##
 # Enfin, on termine la page HTML en fermant les balises.
 echo '</p>
    </body>
-</html>' >> $sortie
+</html>' >> "$sortie"
