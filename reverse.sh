@@ -9,12 +9,12 @@ selecteur(){
 NUM=0  #sera le numero de passage dans la boucle
         #et donne ainsi le numéro de l'argument pour ce passage
 FIND=$1  #position de l'argument à sélectionner
-
-    for V in $@ ; do
-        if [ $NUM -eq $FIND ]; then  #on est sur la
-            echo $V             # position recherchee ?
+    for V in "$@" ; do
+        if [ $NUM -eq "$FIND" ]; then  #on est sur la
+            echo "$V"             # position recherchee ?
                 return         #on met fin à la fonction
          fi
+            # shellcheck disable=SC2004
             NUM=$(($NUM + 1))     #calcul de la prochaine position
     done
 }
@@ -25,26 +25,27 @@ FIND=$1  #position de l'argument à sélectionner
              #SEL sera la position de l'argument à afficher à chaque passage
 
  while [ $SEL -gt 0 ]; do
-       ARG=$(selecteur $SEL $@)  #argument se trouvant sur la position SEL
+       ARG=$(selecteur $SEL "$@")  #argument se trouvant sur la position SEL
        RESULT="$RESULT $ARG"     #on ajoute cet argument dans la liste finale
+       # shellcheck disable=SC2004
        SEL=$(($SEL - 1))         #on diminue SEL de 1
  done
 
  #affichage du résultat
- echo $RESULT
+ echo "$RESULT"
 
-#######################################################################"
 #######################################################################"
 # Si on supprime la définition et l'utilisation de la fonction selecteur, quelle est la proposition qui indique les modifications supplémentaires à apporter au code d'Alice pour obtenir une version bien plus allégée de son script ?
 #APRES FACTORISATION###
 #
 #
-RESULT=""   # va contenir la liste des arguments reordonnes
-
-for ARG in $@ ; do
-   RESULT="$ARG $RESULT"  # on ajoute cet argument au debut
-done            # de la liste finale (pour inverser l'ordre)
-
-# affichage du resultat
-echo $RESULT
+#RESULT=""   # va contenir la liste des arguments reordonnes
+#
+#
+#for ARG in "$@"; do
+#   RESULT="$ARG $RESULT"  # on ajoute cet argument au debut
+#done            # de la liste finale (pour inverser l'ordre)
+#
+## affichage du resultat
+#echo "$RESULT"
 ###########################################################################
