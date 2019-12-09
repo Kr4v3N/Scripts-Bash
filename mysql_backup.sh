@@ -69,7 +69,7 @@ backup() {
         fi
         # On backup notre base de données avec la date de sauvegarde dans le nom du fichier enregistré
         mysqldump --defaults-extra-file=/etc/mysql/user.cnf --single-transaction --add-drop-database --databases $BDD > "$CHEMIN/$BDD"_"$DATE.sql"
-        echo -e "\033[1;32mSauvegarde de la base de données $BDD réalisée avec succès!\033[0m";
+        echo -e "`date` - \033[1;32mSauvegarde de la base de données $BDD réalisée avec succès!\033[0m";
         fi
     done
 }
