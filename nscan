@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+echo -n "Indiquez l'adresse de votre cible: "
+read target
+
+echo -e "\033[34mRecherche de ports ouverts...\033[0m"
+
+ports=$(nmap -p- --min-rate 1000 -T4 $target | grep ^[0-9] | cut -d '/' -f 1 | tr '\n' ',' | sed s/,$//)
+
+if [ ! -z "$ports" ]
+    then
+        echo -e "\033[32mPorts recupérés avec succès! \033[0m"
+
+        echo -e "\033[37mPorts: \033[0m"$ports
+
+        echo -e "\033[34mScan de ports ouverts en mode agressif...\033[0m"
+        # On crée le dossier qui accueillera les logs nmap si il n'existe pas.
+        if [ ! -e nmap ]
+            then
+                mkdir nmap
+            fi
+        nmap -sC -sV -Pn -p $ports $target -oA $1
+    else
+        echo -e "\033[1;31mPas de chance, il n'y a pas de ports à scanner! \033[0m"
+fi
+
+exit 0
+
+
+
+
