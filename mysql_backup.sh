@@ -42,7 +42,7 @@ backup() {
         # Emplacement du dossier ou nous allons stocker les bases de données,
         # un dossier par base de données
         CHEMIN=/home/user/.Mysql_Backup_BD/$BDD;
-        # Si le repertoire de la BDD dans $CHEMIN n'existe pas, on le cree
+        # Si le repertoire de la BDD dans $CHEMIN n'existe pas, on le crée
         if [ ! -d "$CHEMIN" ];then
             ${MKDIR} -p $CHEMIN/
         fi

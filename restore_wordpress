@@ -1,0 +1,118 @@
+#!/bin/bash
+#
+###########################################
+#  Description: Restauration de WordPress
+###########################################
+#  Couleurs
+Green='\033[0;32m'
+Blue='\033[0;34m'
+Red='\033[0;31m'
+# Réinitialisation des couleurs
+Color_Off='\033[0m'
+restore=$1
+backupMainDir=$2
+NOW=$(date +"%F")
+# Les binaires indispensables au script
+sshPass='/usr/bin/sshpass'
+sftp='/usr/bin/sftp'
+# Les identifiants du serveur SFTP distant
+sftpServer='10.0.0.75'
+sftpUser='sftpuser'
+sftpPassword="password"
+# Téléchargement de la sauvegarde depuis le serveur distant
+echo -e "${Blue}Téléchargement de la sauvegarde en cours...\n${Color_Off}"
+$sshPass -p${sftpPassword} $sftp ${sftpUser}@${sftpServer} <<< $'get -r /home/sftpuser/Backup/2020-11-23'
+echo -e "${Green}Téléchargement terminé{Color_Off}"
+if [ -z "$backupMainDir" ]; then
+    # Le répertoire dans lequel on stocke les sauvegardes Wordpress (lorsqu'il n'est pas spécifié par args)
+    backupMainDir="/home/ubuntu/Bureau/$NOW"
+fi
+currentRestoreDir="${backupMainDir}"
+# Le répertoire d'installation Wordpress
+wordpressFileDir='/var/www/html'
+# Le nom de service du serveur Web
+webserverServiceName='apache2'
+# L'utilisateur du serveur Web
+webserverUser='www-data'
+# Le nom de la base de données WordPress
+wordpressDatabase='wordpress'
+# L'utilisateur de la base de données WordPress
+dbUser='wpuser'
+# Le mot de passe de l'utilisateur de la base de données
+dbPasswordUser='XS0jpOYTSXhowgdP4GWlpLw3H'
+# Le nom du super administrateur des bases de données Mysql
+dbRoot='root'
+# Le mot de passe du super utilisateur des bases de données Mysql
+dbPasswordRoot='R0jiGElv9aTw8Bv/'
+# Nom de fichier de la sauvegarde du répertoire
+fileNameBackupFileDir=$(ls -t "${currentRestoreDir}"/*.tar.gz)
+# Nom de fichier du dump de la base de données
+fileNameBackupDb=$(ls -t "${currentRestoreDir}"/*.sql.gz)
+# Fonction pour les messages d'erreur
+errorecho() { cat <<< "$@" 1>&2; }
+# Vérifie si le ou les paramètres sont donnés
+if [ $# != "1" ] && [ $# != "2" ]
+then
+    errorecho "ERROR: Aucun nom de sauvegarde à restaurer donné, ou nombre de paramètres erronés!"
+    errorecho "Usage: ./restore 'BackupDate' ['BackupDirectory']"
+    exit 1
+fi
+# Vérifie si root
+if [ "$(id -u)" != "0" ]
+then
+    errorecho "ERROR: Ce script doit être exécuté en tant que root!"
+    exit 1
+fi
+# Vérifie si le répertoire de sauvegarde existe bien
+if [ ! -d "${currentRestoreDir}" ]
+then
+    errorecho "ERROR: Sauvegarde ${restore} introuvable!"
+    exit 1
+fi
+# Vérifie si les commandes de restauration de la base de données sont disponibles
+ if ! [ -x "$(command -v mysql)" ]; then
+    errorecho "ERROR: MySQL non installé (commande mysql introuvable)"
+    errorecho "ERROR: Aucune restauration de base de données possible!"
+    errorecho "Annulation de la restauration"
+    exit 1
+fi
+# Arrêt du service web
+echo "${Blue}Arrêt du serveur Web ${webserverServiceName} en cours...{Color_Off}"
+systemctl stop "${webserverServiceName}"
+echo -e "${Green}Terminé${Color_Off}"
+# Restaure le répertoire des fichiers WordPress
+echo "${Blue}Restauration du répertoire de WordPress en cours...{Color_Off}"
+tar -xzvf "${fileNameBackupFileDir}" --strip-components=3 -C "${wordpressFileDir}"
+echo -e "${Green}Terminé${Color_Off}"
+# Décompresse la base de données et la renomme
+echo "${Blue}Décompression de la base de données en cours...{Color_Off}"
+gunzip -c  "${fileNameBackupDb}" > "${currentRestoreDir}/${wordpressDatabase}.sql"
+sleep 2
+dbFile=$(ls -t "${currentRestoreDir}"/*.sql)
+echo -e "${Green}Terminé${Color_Off}"
+# Supprime la base de données actuelle
+echo "${Blue}Suppression de l'ancienne base de données WordPress en cours...{Color_Off}"
+mysql -h localhost -u "${dbRoot}" -p"${dbPasswordRoot}" -e "DROP DATABASE ${wordpressDatabase}"
+echo -e "${Green}Terminé${Color_Off}"
+# Crée une nouvelle base de données
+echo "${Blue}Création d'une nouvelle base de données pour WordPress...{Color_Off}"
+mysql -h localhost -u "${dbUser}" -p"${dbPasswordUser}" -e "CREATE DATABASE ${wordpressDatabase}"
+echo -e "${Green}Terminé${Color_Off}"
+# Restaure la base de données de sauvegarde
+echo "${Blue}Restauration de la base de données de sauvegarde en cours...{Color_Off}"
+mysql -h localhost -u "${dbUser}" -p"${dbPasswordUser}" "${wordpressDatabase}" < "${dbFile}"
+echo -e "${Green}Terminé${Color_Off}"
+
+# Démarre le serveur Web
+echo "${Blue}Démarrage du serveur Web...{Color_Off}"
+systemctl start "${webserverServiceName}"
+echo -e "${Green}Terminé${Color_Off}"
+
+# Définit les autorisations de répertoire
+echo "${Blue}Définition des autorisations de répertoire en cours...{Color_Off}"
+chown -R "${webserverUser}":"${webserverUser}" "${wordpressFileDir}"
+echo -e "${Green}Terminé${Color_Off}"
+echo
+echo
+echo -e "${Green}Sauvegarde ${restore} restaurée avec succès${Color_Off}"
+

@@ -1,0 +1,112 @@
+#!/bin/bash
+#
+ #Script Shell pour sauvegarder WordPress et la base de données SQL
+#
+
+# Vérification si ROOT
+isRoot () {
+    if [ "$(id -u)" != "0" ];
+        then
+            echo  -e "\033[0;31mPermission not granted, Please run the script with administrator privileges \n\033[0m"
+            exit 1
+    fi
+}
+
+# Chemins des fichiers binaires
+TAR="/bin/tar"
+MYSQLDUMP="/usr/bin/mysqldump"
+GZIP="/bin/gzip"
+DATE="/usr/bin/date"
+SFTP="/usr/bin/sftp"
+LOGGER="/usr/bin/logger"
+SSHPASS="/usr/bin/sshpass"
+WC="/usr/bin/wc" ;
+LS="/usr/bin/ls" ;
+TAIL="/usr/bin/tail";
+RM="/usr/bin/rm";
+CUT="/usr/bin/cut";
+
+# Fonction de sortie de script si l'un des binaires est inexistant:
+die() {
+    echo $@ >&2 ;
+    exit 1 ;
+}
+
+# Fonction de test des binaires :
+checkBinaries() {
+    # On vérifie si les binaires qui ne sont pas implementés par default sont installés
+    [ -x ${MYSQLDUMP} ] || die "File \"${MYSQLDUMP}\" No found ! Check the definition in ${0}." ;
+    [ -x ${SFTP} ] || die "File \"${SFTP}\" No found ! Check the definition in ${0}." ;
+    [ -x ${SSHPASS} ] || die "File \"${SSHPASS}\" No found ! Check the definition in ${0}." ;
+}
+
+# Fonction de sauvegarde :
+backup() {
+    # Chemin vers les répertoires de sauvegarde
+    DIRS="/var/www/html/wp-content/"
+    HTACCESS="/var/www/html/.htaccess"
+    CONFIG="/var/www/html/wp-config.php"
+
+    # Stocke la date d'aujourd'hui
+    NOW=$(date +"%F")
+
+    # Stocke le chemin de sauvegarde
+    BACKUP="/tmp/Backup/$NOW"
+
+    # Nom du fichier de sauvegarde hostname.date.tar.gz
+    BFILE="$(hostname).$(date +'%T').tar.gz"
+    MFILE="$(hostname).$(date +'%T').sql.gz"
+
+    # Définir le nom d'utilisateur et le mot de passe MySQL
+    MYSQLUSER="root"
+    MYSQLPASSWORD="R0jiGElv9aTw8Bv/"
+
+    # Configuration du serveur SFTP distant
+    SFTPSERVER="10.0.0.75"
+    SFTPUSER="sftpuser"
+    SFTPDUMPDIR="/home/sftpuser"
+    SSHPASSWD="password"
+
+    # S'assurer que le répertoire de sauvegarde existe sinon il sera créé
+    [ ! -d $BACKUP ] && mkdir -p ${BACKUP}
+
+    # Enregistre l'heure de début de la sauvegarde dans /var/log/syslog
+    $LOGGER "$0: *** Backup started @ $($DATE) ***"
+
+    # Sauvegarde le répertoire du serveur Web , htacces et wp-config-php
+    $TAR -cpzf ${BACKUP}/${BFILE} "${DIRS}" "${HTACCESS}" "${CONFIG}"
+
+    # Sauvegarde MySQL
+    $MYSQLDUMP  -u ${MYSQLUSER} -h localhost -p${MYSQLPASSWORD} wordpress | $GZIP -9 > ${BACKUP}/${MFILE}
+
+    # Enregistre le chemin du dossier
+    PATH="/tmp/Backup/"
+
+    # On liste les fichiers présent dans le dossier indiqué
+    NBRARCHIVE=$($LS -A $PATH/ |
+    # On y compte les fichiers qui sont à l'intérieur
+    $WC -l )
+    # Si il y a plus de 1 archives, on supprime la plus ancienne
+    if [ "$NBRARCHIVE" -gt 1 ]; then
+        # On liste par date de modification les sauvegardes présentes dans le dossier
+        OLDBACKUP=$($LS -lr $PATH/ |
+         # on récupère la dernière ligne qui contient forcément le nom de la sauvegarde la plus ancienne
+        $TAIL -n 1 |
+        #  on coupe la ligne pour ne récupérer que le nom du fichier (on récupère la deuxième partie de la ligne quand elle est coupée par le ":"
+        $CUT -d ":" -f 2 |
+      # on coupe la ligne pour ne récupérer que le nom du fichier (on récupère la deuxième partie de la ligne quand elle est coupée par un espace
+        $CUT -d " " -f 2)
+         # On supprime l'archive la plus ancienne
+        $RM -rf $PATH/$OLDBACKUP
+    fi
+
+    # Création d'un dossier distant puis transfert des archives via SFTP
+    $SSHPASS -p${SSHPASSWD} $SFTP ${SFTPUSER}@${SFTPSERVER}:/home/sftpuser/ <<<  $'put -r /tmp/Backup'
+
+    # Consigner l'heure de fin de la sauvegarde dans /var/log/syslog
+    $LOGGER "$0: *** The backup has been successfully completed @ $($DATE) ***"
+}
+
+isRoot;
+checkBinaries;
+backup;

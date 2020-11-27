@@ -1,0 +1,169 @@
+#!/bin/bash
+
+#####################################################
+#   Description: Installation de AMP et WordPress
+#####################################################
+
+# Couleurs
+Red='\033[0;31m'          # Red
+Cyan='\033[0;36m'         # Cyan
+# Réinitialisation des couleurs
+Color_Off='\033[0m'       # Reset
+
+# Vérification si ROOT
+if [ "$(id -u)" != "0" ];
+then
+	echo -e "${Red}Veuillez exécuter le script avec les droits administrateur \n${Color_Off}"
+	exit 1
+fi
+
+
+PASS_MYSQL_ROOT="R0jiGElv9aTw8Bv/"
+
+sudo touch pwd_LAMP |
+echo -e "Le mot de passe MySQL est:  ${PASS_MYSQL_ROOT}" > pwd_LAMP
+
+update() {
+	# Mise à jour du système
+	echo -e "\n ${Cyan}Mise à jour du système... ${Color_Off}"
+	sudo apt -qq update
+	sudo apt -qy upgrade
+	sudo apt -qy autoremove
+}
+
+installSshpass() {
+	# Sshpass
+	echo -e "\n ${Cyan}Installation de Sshpass... ${Color_Off}"
+	sudo apt -qy install sshpass
+}
+
+installApache() {
+	# Apache
+	echo -e "\n ${Cyan}Installation d'Apache... ${Color_Off}"
+	sudo apt -qy install apache2 apache2-doc apache2-utils
+}
+
+restartApache() {
+	# Restaurer Apache
+	echo -e "\n ${Cyan}Ajout du service Apache2 au démarrage du système... ${Color_Off}"
+	systemctl enable apache2
+	echo -e "\n ${Cyan}Restauration du service Apache2... ${Color_Off}"
+	systemctl restart apache2
+}
+
+installPHP() {
+	# PHP et ses Modules
+	echo -e "\n ${Cyan}Installation de PHP et de ses Modules... ${Color_Off}"
+	# PHP7
+	sudo apt -qy install php php-cli php-fpm php-json php-common php-mysql php-zip \
+	php-gd php-mbstring php-curl php-xml php-pear php-bcmath
+	sudo sudo a2enmod php7.4
+	sudo systemctl restart apache2
+}
+
+installMySQL() {
+	# MySQL
+	echo -e "\n ${Cyan}Installation de MySQL... ${Color_Off}"
+	# définir le mot de passe avec `debconf-set-selections` pour ne pas avoir à le saisir dans l'invite afin que le script continue à s"exécuter
+	sudo debconf-set-selections <<< "mysql-server mysql-server/root_password password ${PASS_MYSQL_ROOT}" # nouveau mot de passe pour l'utilisateur root MySQL
+	sudo debconf-set-selections <<< "mysql-server mysql-server/root_password_again password ${PASS_MYSQL_ROOT}" # répéter le mot de passe pour l'utilisateur root MySQL
+
+	# DEBIAN_FRONTEND=noninteractive # en définissant ceci sur non interactif, aucune question ne sera posée
+	DEBIAN_FRONTEND=noninteractive sudo apt -qy install mysql-server mysql-client
+}
+
+secureMySQL() {
+	# Installation sécurisée de MySQL
+	echo -e "\n ${Cyan}Securisation de MySQL... ${Color_Off}"
+	mysql --user=root --password=${PASS_MYSQL_ROOT} << EOFMYSQLSECURE
+DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+DELETE FROM mysql.user WHERE User='';
+DELETE FROM mysql.db WHERE Db='test' OR Db='test_%';
+FLUSH PRIVILEGES;
+EOFMYSQLSECURE
+
+}
+
+enableMods() {
+	# Activation de mod_rewrite, requis pour WordPress permalinks et le fichier .htaccess f
+	echo -e "\n ${Cyan}Activation de Modules... ${Color_Off}"
+    # Installation de PHP-FPM pour obtenir de meilleures performances sur le serveur
+	sudo a2dismod php7.4
+	sudo sudo apt install php7.4-fpm
+	# Activate modules proxy_fcgi et setenvif
+	sudo a2enmod proxy_fcgi setenvif
+	sudo a2enconf php7.4-fpm
+	sudo systemctl restart apache2
+}
+
+setPermissions() {
+	# Permissions
+	echo -e "\n ${Cyan}Définition de la propriété pour /var/www... ${Color_Off}"
+
+	sudo chown -R www-data:www-data /var/www
+}
+
+createDataBase() {
+	# Création de la base de données et de l'utilisateur
+	echo -e "\n ${Cyan}Creation de la base de données et de l'utilisateur... ${Color_Off}"
+	# Créer une base de données WordPress MySQL
+	dbname="wordpress"
+	echo -e "Database Name: ${dbname}" >> pwd_LAMP
+	dbuser="wpuser"
+	echo -e "Username: ${dbuser}" >> pwd_LAMP
+	userpass="XS0jpOYTSXhowgdP4GWlpLw3H"
+	echo -e "Password: ${userpass}" >> pwd_LAMP
+
+	echo "CREATE DATABASE $dbname;" | mysql -u root -p$PASS_MYSQL_ROOT
+	echo "CREATE USER '$dbuser'@'localhost' IDENTIFIED BY '$userpass';" | mysql -u root -p$PASS_MYSQL_ROOT
+	echo "GRANT ALL PRIVILEGES ON $dbname.* TO '$dbuser'@'localhost';" | mysql -u root -p$PASS_MYSQL_ROOT
+	echo "FLUSH PRIVILEGES;" | mysql -u root -p$PASS_MYSQL_ROOT
+
+}
+
+wpInstall() {
+	dbname="wordpress"
+	dbuser="wpuser"
+	userpass="XS0jpOYTSXhowgdP4GWlpLw3H"
+	echo -e "\n ${Cyan}Installation de WordPress... ${Color_Off}"
+	wget https://wordpress.org/latest.tar.gz
+	tar xzvf latest.tar.gz
+	cp ./wordpress/wp-config-sample.php ./wordpress/wp-config.php
+	touch ./wordpress/.htaccess
+	chmod 660 ./wordpress/.htaccess
+	mkdir ./wordpress/wp-content/upgrade
+	cp -a ./wordpress/. /var/www/html
+	chown -R www-data /var/www/html
+	find /var/www/html -type d -exec chmod g+s {} \;
+	chmod g+w /var/www/html/wp-content
+	chmod -R g+w /var/www/html/wp-content/themes
+	chmod -R g+w /var/www/html/wp-content/plugins
+	sudo rm /var/www/html/index.html
+	service apache2 restart
+	service mysql restart
+	echo
+	read -p "Appuyez sur [ENTER] pour afficher les détails de votre base de données WordPress MySQL!"
+	echo "Nom de la base de données: $dbname"
+	echo "Nom d'utilisateur: $dbuser"
+	echo "Mot de passe: $userpass"
+	echo "Votre mot de passe MySQL ROOT est: $PASS_MYSQL_ROOT"
+}
+
+# RUN
+installSshpass
+update
+installApache;
+installPHP;
+installMySQL;
+secureMySQL;
+enableMods;
+setPermissions;
+restartApache;
+createDataBase;
+wpInstall;
+
+
+
+
+
+
