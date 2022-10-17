@@ -11,4 +11,5 @@ echo Ports grabbed!
 
 echo Scanning...
 
-nmap -sC -sV -Pn -p $ports $1 $2 $3
+nmap -sC -sV -p $ports $1 $2 $3
+

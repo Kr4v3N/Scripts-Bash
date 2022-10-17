@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Récupération des noms des conteneurs
+containers=$(docker ps -a --format={{.Names}})
+
+for container in $containers
+do
+    # Récupération des informations du conteneur
+    IP=$(docker inspect --format='{{.NetworkSettings.IPAddress}}' $container)
+    IPp=$(docker inspect --format='{{.NetworkSettings.IPPrefixLen}}' $container)
+    MACADDR=$(docker inspect --format='{{.NetworkSettings.MacAddress}}' $container)
+    GATEWAY=$(docker inspect --format='{{.NetworkSettings.Gateway}}' $container)
+    PORTS=$(docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}}{{println "\t  -" $p ":" (index $conf 0).HostPort}}{{end}}' $container | sed -e 's/ : /:/')
+
+    # Affichage des informations du conteneur
+    echo -e "$container :"
+    echo -e "\tIP : $IP/$IPp"
+    echo -e "\tMacAddress : $MACADDR"
+    echo -e "\tGateway : $GATEWAY"
+    echo -e "\tPorts : \n${PORTS//\/tcp/}\n"
+done
